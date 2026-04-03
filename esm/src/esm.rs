@@ -1,8 +1,8 @@
 use crate::constants::EventType::EpollIn;
-use crate::epoll_event::{EpollEvent, EventResult};
+use crate::epoll_event::EpollEvent;
 use crate::libc_wrapper::{epoll_add, epoll_create, epoll_remove, epoll_wait_single_event};
 use std::collections::HashMap;
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 use std::os::fd::RawFd;
 
 pub enum ESMActionResult {
@@ -45,23 +45,26 @@ impl ESM {
         result
     }
 
-    pub fn dispatch(&self) -> Result<EventResult, Error> {
-        let callback = RawFd::from(epoll_wait_single_event(self.epoll_fd)?);
-        Ok(self.map[&callback].handle(callback))
+    pub fn dispatch(&self) -> Option<bool> {
+        let event = epoll_wait_single_event(self.epoll_fd);
+        if event.is_err() {
+            return None;
+        }
+
+        let event_fd = RawFd::from(event.unwrap());
+        self.map[&event_fd].handle(event_fd)
     }
 
-    pub fn dispatch_indefinitely(&self) -> Result<EventResult, Error> {
+    pub fn dispatch_indefinitely(&self) {
         loop {
-            let result = self.dispatch()?;
+            let result = self.dispatch();
 
-            match result {
-                EventResult::Fatal => {
-                    return Err(Error::new(
-                        ErrorKind::Other,
-                        "Fatal error received during event handle",
-                    ));
-                }
-                _ => {}
+            if result.is_none() {
+                panic!("Fatal error during event handling")
+            }
+
+            if !result.unwrap() {
+                eprintln!("Handling of event failed, see previous logs")
             }
         }
     }

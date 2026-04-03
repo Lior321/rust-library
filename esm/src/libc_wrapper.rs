@@ -1,8 +1,8 @@
+use crate::constants::EventType;
 use std::ffi::{c_int, c_void};
 use std::io::Error;
 use std::os::fd::RawFd;
 use std::ptr::null_mut;
-use crate::constants::EventType;
 
 #[repr(C)]
 pub union epoll_data_t {
@@ -49,16 +49,19 @@ pub(crate) fn epoll_add(epoll_fd: RawFd, file: RawFd, mode: EventType) -> bool {
     };
 
     let ptr = Box::into_raw(Box::new(event));
-    0 == unsafe {epoll_ctl(epoll_fd, EPOLL_CTL_ADD, file, ptr)}
+    0 == unsafe { epoll_ctl(epoll_fd, EPOLL_CTL_ADD, file, ptr) }
 }
 
 pub(crate) fn epoll_remove(epoll_fd: RawFd, file: RawFd) -> bool {
-    0 == unsafe {epoll_ctl(epoll_fd, EPOLL_CTL_DEL, file, null_mut())}
+    0 == unsafe { epoll_ctl(epoll_fd, EPOLL_CTL_DEL, file, null_mut()) }
 }
 
 pub(crate) fn epoll_wait_single_event(epoll_fd: RawFd) -> Result<i32, Error> {
-    let mut callback: Box<epoll_event> = Box::new(epoll_event{ events:0, data: epoll_data_t{ptr: null_mut()} } );
-    if 0 > unsafe {epoll_wait(epoll_fd, callback.as_mut(), 1, -1)} {
+    let mut callback: Box<epoll_event> = Box::new(epoll_event {
+        events: 0,
+        data: epoll_data_t { ptr: null_mut() },
+    });
+    if 0 > unsafe { epoll_wait(epoll_fd, callback.as_mut(), 1, -1) } {
         return Err(Error::last_os_error());
     }
 
