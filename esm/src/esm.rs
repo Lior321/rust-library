@@ -45,17 +45,17 @@ impl ESM {
         result
     }
 
-    pub fn dispatch(&self) -> Option<bool> {
+    pub fn dispatch(&mut self) -> Option<bool> {
         let event = epoll_wait_single_event(self.epoll_fd);
         if event.is_err() {
             return None;
         }
 
         let event_fd = RawFd::from(event.unwrap());
-        self.map[&event_fd].handle(event_fd)
+        self.map.get_mut(&event_fd).expect("weird").handle()
     }
 
-    pub fn dispatch_indefinitely(&self) {
+    pub fn dispatch_indefinitely(&mut self) {
         loop {
             let result = self.dispatch();
 

@@ -61,7 +61,9 @@ pub(crate) fn epoll_wait_single_event(epoll_fd: RawFd) -> Result<i32, Error> {
         events: 0,
         data: epoll_data_t { ptr: null_mut() },
     });
-    if 0 > unsafe { epoll_wait(epoll_fd, callback.as_mut(), 1, -1) } {
+
+    let result = unsafe { epoll_wait(epoll_fd, callback.as_mut(), 1, -1) };
+    if 0 > result {
         return Err(Error::last_os_error());
     }
 
