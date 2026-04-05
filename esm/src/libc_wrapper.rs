@@ -65,6 +65,8 @@ pub(crate) fn epoll_wait_single_event(epoll_fd: RawFd) -> Result<i32, Error> {
     loop {
         let result = unsafe { epoll_wait(epoll_fd, callback.as_mut(), 1, -1) };
         if 0 > result {
+            // 4 is EINTR which means we simply got a signal
+            // could have been also timeout, but we run with unlimited timeout by feature
             if Error::last_os_error().raw_os_error().unwrap() == 4 {
                 println!("shitty signal");
                 continue;
