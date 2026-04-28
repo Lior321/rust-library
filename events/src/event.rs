@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 pub trait IEvent: Send {
-    fn handle(&mut self) -> Option<bool>;
+    fn handle(&mut self) -> bool;
 }
 
 pub struct EventHandle(pub(crate) Arc<Mutex<dyn IEvent>>);
