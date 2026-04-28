@@ -1,9 +1,8 @@
 use crate::constants::EventType::EpollIn;
 use crate::epoll_event::EpollEvent;
+use crate::esm_error::EsmError;
 use crate::libc_wrapper::{epoll_add, epoll_create, epoll_remove, epoll_wait_single_event};
-use crate::EsmError::EsmError;
 use std::collections::HashMap;
-use std::io::Error;
 use std::os::fd::RawFd;
 
 pub enum ESMActionResult {
