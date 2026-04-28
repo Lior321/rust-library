@@ -40,7 +40,7 @@ pub(crate) fn epoll_create() -> Result<RawFd, Error> {
     Ok(fd)
 }
 
-pub(crate) fn epoll_add(epoll_fd: RawFd, file: RawFd, mode: EventType) -> bool {
+pub(crate) fn epoll_add(epoll_fd: RawFd, file: RawFd, mode: EventType) -> Result<(), Error> {
     let event: epoll_event = epoll_event {
         events: mode as u32,
         data: epoll_data_t {
@@ -49,11 +49,19 @@ pub(crate) fn epoll_add(epoll_fd: RawFd, file: RawFd, mode: EventType) -> bool {
     };
 
     let ptr = Box::into_raw(Box::new(event));
-    0 == unsafe { epoll_ctl(epoll_fd, EPOLL_CTL_ADD, file, ptr) }
+    if 0 != unsafe { epoll_ctl(epoll_fd, EPOLL_CTL_ADD, file, ptr) } {
+        return Err(Error::last_os_error());
+    }
+    
+    Ok(())
 }
 
-pub(crate) fn epoll_remove(epoll_fd: RawFd, file: RawFd) -> bool {
-    0 == unsafe { epoll_ctl(epoll_fd, EPOLL_CTL_DEL, file, null_mut()) }
+pub(crate) fn epoll_remove(epoll_fd: RawFd, file: RawFd) -> Result<(), Error> {
+    if 0 != unsafe { epoll_ctl(epoll_fd, EPOLL_CTL_DEL, file, null_mut()) } {
+        return Err(Error::last_os_error());
+    }
+    
+    Ok(())
 }
 
 pub(crate) fn epoll_wait_single_event(epoll_fd: RawFd) -> Result<i32, Error> {

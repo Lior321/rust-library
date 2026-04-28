@@ -1,3 +1,3 @@
 pub trait EpollEvent {
-    fn handle(&mut self) -> Option<bool>;
+    fn handle(&mut self) -> bool;
 }
