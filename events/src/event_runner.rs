@@ -1,14 +1,14 @@
-use crate::event::EventHandle;
+use crate::event::EventHandler;
 use std::collections::VecDeque;
 use std::sync::{Arc, Condvar, Mutex, Once};
 use std::thread;
 
-pub struct EventQueue {
-    queue: Mutex<VecDeque<EventHandle>>,
+pub struct EventQueue<T: EventHandler> {
+    queue: Mutex<VecDeque<T>>,
     condvar: Condvar,
 }
 
-impl EventQueue {
+impl<T: EventHandler> EventQueue<T> {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             queue: Mutex::new(VecDeque::new()),
@@ -16,7 +16,7 @@ impl EventQueue {
         })
     }
 
-    pub fn push(&self, event: EventHandle) {
+    pub fn push(&self, event: T) {
         self.queue
             .lock()
             .expect("Failed to lock the event queue")
@@ -24,30 +24,34 @@ impl EventQueue {
         self.condvar.notify_one();
     }
 
-    pub fn pop_blocking(&self) -> EventHandle {
-        let mut queue = self.queue.lock().expect("Failed to lock the event queue");
+    pub fn pop_blocking(&self) -> Option<T> {
+        let mut queue = match self.queue.lock() {
+            Err(_) => return None,
+            Ok(event) => event,
+        };
+
         loop {
             if let Some(event) = queue.pop_front() {
-                return event;
+                return Some(event);
             }
             queue = self.condvar.wait(queue).unwrap();
         }
     }
 
-    pub fn try_pop(&self) -> Option<EventHandle> {
-        self.queue
-            .lock()
-            .expect("Failed to lock the event queue")
-            .pop_front()
+    pub fn try_pop(&self) -> Option<T> {
+        match self.queue.lock() {
+            Err(_) => None,
+            Ok(mut dequeue) => dequeue.pop_front(),
+        }
     }
 }
 
-pub struct EventManager {
-    queue: Arc<EventQueue>,
+pub struct EventManager<T: EventHandler + 'static> {
+    queue: Arc<EventQueue<T>>,
     has_started: Once,
 }
 
-impl EventManager {
+impl<T: EventHandler + 'static> EventManager<T> {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             queue: EventQueue::new(),
@@ -56,7 +60,7 @@ impl EventManager {
     }
 
     /// Returns a handle producers can use to push events
-    pub fn queue(&self) -> Arc<EventQueue> {
+    pub fn queue(&self) -> Arc<EventQueue<T>> {
         Arc::clone(&self.queue)
     }
 
@@ -64,14 +68,20 @@ impl EventManager {
     pub fn start(&self) {
         self.has_started.call_once(move || {
             let queue = Arc::clone(&self.queue);
+            match queue.pop_blocking() {
+                None => true,
+                Some(mut event) => event.handle(),
+            };
 
             thread::spawn(move || {
                 loop {
-                    let event = queue.pop_blocking();
-                    event.0.lock().expect("Failed to lock event").handle();
+                    match queue.pop_blocking() {
+                        None => false,
+                        Some(_) => true,
+                        // Some(mut event) => event.handle(),
+                    };
                 }
             });
         })
-
     }
 }
